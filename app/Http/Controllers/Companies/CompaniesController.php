@@ -18,9 +18,20 @@ class CompaniesController extends Controller
      */
     public function index()
     {
-        $companies = Companies::with('employees')
-                    ->orderBy('created_at', 'desc')
-                    ->paginate(15);
+        try {
+            $companies = Companies::with('employees')
+                        ->orderBy('created_at', 'desc')
+                        ->paginate(15);
+            return new CompaniesCollection($companies);
+        }catch (\Exception $e) {
+            return response()->json(['messages' => 'Bir hata oluştu.'], 500);
+        }
+    }
+
+
+    public function getAllCompanies()
+    {
+        $companies = Companies::all();
         return new CompaniesCollection($companies);
     }
 
@@ -40,14 +51,19 @@ class CompaniesController extends Controller
 
         $validatedData = $request->validated();
 
-         // logo add storage
-         if ($request->hasFile('logo')) {
-            $logoUrl = $request->file('logo')->store('logos', 'public');
-            $validatedData['logo'] = "http://127.0.0.1:8000/storage/" . $logoUrl;
-        }
+        try {
+            // logo add storage
+            if ($request->hasFile('logo')) {
+                $logoUrl = $request->file('logo')->store('logos', 'public');
+                $validatedData['logo'] = "http://127.0.0.1:8000/storage/" . $logoUrl;
+            }
 
-        Companies::create($validatedData);
-        return response()->json(['messages' => 'Şirket başarıyla eklendi.'], 201);
+            Companies::create($validatedData);
+            return response()->json(['messages' => 'Şirket başarıyla eklendi.'], 201);
+
+        } catch (\Exception $e) {
+            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
+        }
     }
 
     /**
@@ -55,8 +71,14 @@ class CompaniesController extends Controller
      */
     public function show(string $id)
     {
-        $company = Companies::with('employees')->findOrFail($id);
-        return new CompaniesResource($company);
+        try {
+            $company = Companies::with('employees')->findOrFail($id);
+            return new CompaniesResource($company);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['messages' => 'Çalışan bulunamadı.'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
+        }
     }
 
     /**
@@ -80,17 +102,21 @@ class CompaniesController extends Controller
      */
     public function destroy(string $id)
     {
-        $company = Companies::findOrFail($id);
-
-        if ($company->logo) {
-            $logoPath = explode('storage/', $company->logo)[1];
-            $logoPath = 'public/' . $logoPath;
-            if (Storage::exists($logoPath)) {
-                Storage::delete($logoPath);
+        try{
+            $company = Companies::findOrFail($id);
+            if ($company->logo) {
+                $logoPath = explode('storage/', $company->logo)[1];
+                $logoPath = 'public/' . $logoPath;
+                if (Storage::exists($logoPath)) {
+                    Storage::delete($logoPath);
+                }
             }
-        }
 
-        $company->delete();
-        return response()->json(['message' => 'Şirket başarıyla silindi.'], 200);
+            $company->delete();
+            return response()->json(['message' => 'Şirket başarıyla silindi.'], 200);
+        } catch (\Exception $e) {
+            // Hata durumunda yanıt döndür.
+            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
+        }
     }
 }

@@ -31,6 +31,16 @@ class StoreCompanyRequest extends FormRequest
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'name' => 'Şirket Adı',
+            'email' => 'Email',
+            'logo' => 'Logo',
+            'website' => 'Website url',
+        ];
+    }
+
     protected function failedValidation(Validator $validator)
     {
           $errors = $validator->errors()->all();

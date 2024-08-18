@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Employees;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Employees\StoreEmployeesRequest;
 use App\Http\Resources\Employees\EmployeesCollection;
 use App\Http\Resources\Employees\EmployeesResource;
 use App\Models\Employees;
@@ -15,8 +16,13 @@ class EmployeesController extends Controller
      */
     public function index()
     {
-        $companies = Employees::paginate(15);
-        return new EmployeesCollection($companies);
+        try {
+            $companies = Employees::orderBy('created_at', 'desc')
+                                    ->paginate(15);
+            return new EmployeesCollection($companies);
+        }catch (\Exception $e) {
+            return response()->json(['message' => 'Bir hata oluştu.'], 500);
+        }
     }
 
     /**
@@ -30,9 +36,16 @@ class EmployeesController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreEmployeesRequest $request)
     {
-        //
+        $validatedData = $request->validated();
+
+        try {
+            Employees::create($validatedData);
+            return response()->json(['messages' => 'Çalışan başarıyla eklendi.'], 201);
+        } catch (\Exception $e) {
+            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
+        }
     }
 
     /**
@@ -40,8 +53,14 @@ class EmployeesController extends Controller
      */
     public function show(string $id)
     {
-        $company = Employees::findOrFail($id);
-        return new EmployeesResource($company);
+        try {
+            $company = Employees::findOrFail($id);
+            return new EmployeesResource($company);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['messages' => 'Çalışan bulunamadı.'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
+        }
     }
 
     /**
@@ -65,6 +84,13 @@ class EmployeesController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            $employe = Employees::findOrFail($id);
+
+            $employe->delete();
+            return response()->json(['messages' => 'Çalışan başarıyla silindi.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
+        }
     }
 }

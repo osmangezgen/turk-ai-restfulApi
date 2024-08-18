@@ -17,8 +17,11 @@ Route::post('logout', [authController::class, "logout"]);
 // sanctum api protect
 Route::middleware('auth:sanctum', 'throttle:15,1')->group(function () {
 
-    // Employees
+    // Companies
     Route::apiResource('companies', CompaniesController::class);
+    Route::get('companies-read', [CompaniesController::class, 'getAllCompanies']);
+
+    // Employees
     Route::apiResource('employees', EmployeesController::class);
 
 });
