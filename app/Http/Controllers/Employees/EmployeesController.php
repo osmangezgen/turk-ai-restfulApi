@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Employees;
 
+use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employees\StoreEmployeesRequest;
 use App\Http\Resources\Employees\EmployeesCollection;
@@ -16,13 +17,11 @@ class EmployeesController extends Controller
      */
     public function index()
     {
-        try {
+        return ResponseHelper::handleRequest(function() {
             $companies = Employees::orderBy('created_at', 'desc')
-                                    ->paginate(15);
+                                  ->paginate(15);
             return new EmployeesCollection($companies);
-        }catch (\Exception $e) {
-            return response()->json(['message' => 'Bir hata oluştu.'], 500);
-        }
+        });
     }
 
     /**
@@ -38,14 +37,13 @@ class EmployeesController extends Controller
      */
     public function store(StoreEmployeesRequest $request)
     {
-        $validatedData = $request->validated();
 
-        try {
+        return ResponseHelper::handleRequest(function() use ($request) {
+            $validatedData = $request->validated();
+
             Employees::create($validatedData);
             return response()->json(['messages' => 'Çalışan başarıyla eklendi.'], 201);
-        } catch (\Exception $e) {
-            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
-        }
+        });
     }
 
     /**
@@ -53,14 +51,10 @@ class EmployeesController extends Controller
      */
     public function show(string $id)
     {
-        try {
+        return ResponseHelper::handleRequest(function() use ($id) {
             $company = Employees::findOrFail($id);
             return new EmployeesResource($company);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['messages' => 'Çalışan bulunamadı.'], 404);
-        } catch (\Exception $e) {
-            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
-        }
+        });
     }
 
     /**
@@ -84,13 +78,28 @@ class EmployeesController extends Controller
      */
     public function destroy(string $id)
     {
-        try {
+        return ResponseHelper::handleRequest(function() use ($id) {
             $employe = Employees::findOrFail($id);
 
             $employe->delete();
             return response()->json(['messages' => 'Çalışan başarıyla silindi.'], 200);
-        } catch (\Exception $e) {
-            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
-        }
+        });
+    }
+
+    public function search(Request $request)
+    {
+        return ResponseHelper::handleRequest(function() use ($request) {
+            $query = $request->input('query');
+
+            if (!$query) {
+                return response()->json(['messages' => 'Arama terimi girilmelidir.'], 400);
+            }
+
+            $companies = Employees::where('first_name', 'like', '%' . $query . '%')
+                ->orderBy('created_at', 'desc')
+                ->paginate(15);
+
+            return new EmployeesCollection($companies);
+        });
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Companies;
 
+use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Companies\StoreCompanyRequest;
 use Illuminate\Http\Request;
@@ -18,21 +19,12 @@ class CompaniesController extends Controller
      */
     public function index()
     {
-        try {
+        return ResponseHelper::handleRequest(function() {
             $companies = Companies::with('employees')
                         ->orderBy('created_at', 'desc')
                         ->paginate(15);
             return new CompaniesCollection($companies);
-        }catch (\Exception $e) {
-            return response()->json(['messages' => 'Bir hata oluştu.'], 500);
-        }
-    }
-
-
-    public function getAllCompanies()
-    {
-        $companies = Companies::all();
-        return new CompaniesCollection($companies);
+        });
     }
 
     /**
@@ -48,11 +40,10 @@ class CompaniesController extends Controller
      */
     public function store(StoreCompanyRequest $request)
     {
+        return ResponseHelper::handleRequest(function() use ($request) {
+            $validatedData = $request->validated();
 
-        $validatedData = $request->validated();
-
-        try {
-            // logo add storage
+             // logo add storage
             if ($request->hasFile('logo')) {
                 $logoUrl = $request->file('logo')->store('logos', 'public');
                 $validatedData['logo'] = "http://127.0.0.1:8000/storage/" . $logoUrl;
@@ -60,10 +51,7 @@ class CompaniesController extends Controller
 
             Companies::create($validatedData);
             return response()->json(['messages' => 'Şirket başarıyla eklendi.'], 201);
-
-        } catch (\Exception $e) {
-            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
-        }
+        });
     }
 
     /**
@@ -71,14 +59,10 @@ class CompaniesController extends Controller
      */
     public function show(string $id)
     {
-        try {
+        return ResponseHelper::handleRequest(function() use ($id) {
             $company = Companies::with('employees')->findOrFail($id);
             return new CompaniesResource($company);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['messages' => 'Çalışan bulunamadı.'], 404);
-        } catch (\Exception $e) {
-            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
-        }
+        });
     }
 
     /**
@@ -102,9 +86,9 @@ class CompaniesController extends Controller
      */
     public function destroy(string $id)
     {
-        try{
+        return ResponseHelper::handleRequest(function() use ($id) {
             $company = Companies::findOrFail($id);
-            if ($company->logo) {
+            if ($company->logo && @strpos($company->logo, "storage/") !== false) {
                 $logoPath = explode('storage/', $company->logo)[1];
                 $logoPath = 'public/' . $logoPath;
                 if (Storage::exists($logoPath)) {
@@ -113,10 +97,32 @@ class CompaniesController extends Controller
             }
 
             $company->delete();
-            return response()->json(['message' => 'Şirket başarıyla silindi.'], 200);
-        } catch (\Exception $e) {
-            // Hata durumunda yanıt döndür.
-            return response()->json(['messages' => 'Beklenmedik bir hata oluştu.'], 500);
-        }
+            return response()->json(['messages' => 'Şirket başarıyla silindi.'], 200);
+        });
+    }
+
+    public function getAllCompanies()
+    {
+        return ResponseHelper::handleRequest(function() {
+            $companies = Companies::all();
+            return new CompaniesCollection($companies);
+        });
+    }
+
+    public function search(Request $request)
+    {
+        return ResponseHelper::handleRequest(function() use ($request) {
+            $query = $request->input('query');
+
+            if (!$query) {
+                return response()->json(['messages' => 'Arama terimi girilmelidir.'], 400);
+            }
+
+            $companies = Companies::where('name', 'like', '%' . $query . '%')
+                ->orderBy('created_at', 'desc')
+                ->paginate(15);
+
+            return new CompaniesCollection($companies);
+        });
     }
 }
